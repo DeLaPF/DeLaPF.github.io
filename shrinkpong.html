@@ -1,0 +1,225 @@
+<html>
+
+<canvas id = "gameCanvas" width= "800" height = "600"></canvas>
+
+<script>
+var showingMenuScreen = false;
+
+var canvas;
+var canvasContext;
+var ballX = 50;
+var ballSpeedX = 5;
+var ballY = 50;
+var ballSpeedY = 2;
+
+var powerUpX = 0;
+var powerUpY = 0;
+var powerUpSpeedY = 2;
+
+var player1Score = 0;
+var player2Score = 0;
+const WIN_SCORE = 7;
+
+var showingWinScreen = false;
+
+var paddle1Y = 250;
+var paddle2Y = 250;
+const PADDLE_THICKNESS = 10;
+var paddleHeight = 100;
+var paddleHeight2 = 100;
+
+function calculateMousePos(evt) {
+	var rect = canvas.getBoundingClientRect();
+	var root = document.documentElement;
+	var mouseX = evt.clientX - rect.left - root.scrollLeft;
+	var mouseY = evt.clientY - rect.top - root.scrollTop;
+	return {
+		x:mouseX,
+		y:mouseY
+	};
+}
+
+function handleMouseClick() {
+	if(showingWinScreen) {
+		player1Score = 0;
+		player2Score = 0;
+		showingWinScreen = false;
+	}
+	if(showingMenuScreen) {
+		showingMenuScreen = false;
+	}
+}
+
+window.onload = function () {
+	console.log("Hello, World!");
+	canvas = document.getElementById('gameCanvas');
+	canvasContext = canvas.getContext('2d');
+	
+	showingMenuScreen = true;
+	
+	var framesPerSecond = 60;
+	setInterval(function(){
+		moveEverything();
+		drawEverything();
+	}, 
+	1000/framesPerSecond);
+
+	canvas.addEventListener('mousedown', handleMouseClick);
+	
+	canvas.addEventListener('mousemove',
+		function(evt) {
+			var mousePos = calculateMousePos(evt);
+			paddle1Y = mousePos.y-(paddleHeight/2);
+		});
+}
+
+function ballReset() {
+	if(player1Score >= WIN_SCORE || player2Score >= WIN_SCORE) {
+		showingWinScreen = true;
+	}
+	
+	ballSpeedY = 2;
+	ballSpeedX = ballSpeedX;
+	ballX = canvas.width/2;
+	ballY = canvas.height/2;
+}
+
+function computerMovement() {
+	var paddle2YCenter = paddle2Y + (paddleHeight2/2);
+	if(paddle2YCenter < ballY-25) {
+		paddle2Y += 10;
+	} else if(paddle2YCenter > ballY+25){
+		paddle2Y -= 10;
+	}
+}
+
+function moveEverything() {
+	if(showingWinScreen) {
+		return;
+	}
+	computerMovement();
+
+	ballX += ballSpeedX;
+	ballY += ballSpeedY;
+	if(ballX < 10) {
+		if(ballY > paddle1Y &&
+		   ballY < paddle1Y+paddleHeight){
+			ballSpeedX = -ballSpeedX;
+
+			var deltaY = ballY - (paddle1Y+paddleHeight/2);
+			ballSpeedY = deltaY *0.35;
+		} else {
+			player2Score++; //must be before ball reset
+			ballReset();
+			paddleHeight = 100;
+			paddleHeight2 = 100;
+		}
+	}
+	if(ballX > canvas.width-10) {
+		if(ballY > paddle2Y &&
+		   ballY < paddle2Y+paddleHeight2){
+			ballSpeedX = -ballSpeedX;
+			var deltaY = ballY - (paddle2Y+paddleHeight2/2);
+			ballSpeedY = deltaY *0.25;
+		} else {
+			player1Score++;
+			ballReset();
+			paddleHeight = 100;
+			paddleHeight2 = 100;
+		}
+	}
+	if(ballY < 0) {
+		ballSpeedY = -ballSpeedY;
+	}
+	if(ballY > canvas.height) {
+		ballSpeedY = -ballSpeedY;
+	}
+	
+	//Power Up Movement
+	powerUpY += powerUpSpeedY;
+	if(ballX > 380 && ballX < 420) {
+		if(ballY > powerUpY &&
+		   ballY < powerUpY+20) {
+			if(ballSpeedX > 0  && paddleHeight2 > 60) {
+				paddleHeight2 = paddleHeight2/1.5;
+			} else if(ballSpeedX < 0  && paddleHeight > 60) {
+				paddleHeight = paddleHeight/1.5;
+			}
+		}
+	}
+	if(powerUpY < 0) {
+		powerUpSpeedY = -powerUpSpeedY;
+	}
+	if(powerUpY > canvas.height) {
+		powerUpSpeedY = -powerUpSpeedY;
+	}
+}
+
+function drawNet() {
+	for(var i = 0;i < canvas.height; i += 40) {
+		colorRect(canvas.width/2-1,i,2,20, 'white');
+	}
+}
+
+function drawPowerUp() {
+	powerUpX = canvas.width/2-20;
+	colorRect(powerUpX, powerUpY, 40, 40, 'white');
+	canvasContext.fillStyle = 'black';
+	canvasContext.fillText("SHRINK", 380, powerUpY+20);
+}
+
+function drawEverything() {
+	//Main Menu
+	if(showingMenuScreen) {
+		colorRect(0,0,canvas.width,canvas.height, 'black');
+		canvasContext.fillStyle = 'white';
+		canvasContext.fillText("Welcome to Shrink Tennis", 340, 200);
+		canvasContext.fillText("Click to continue", 350, 400);
+		return;
+	}
+	
+	//Game screen
+	colorRect(0,0,canvas.width,canvas.height, 'black');
+
+	if(showingWinScreen) {
+		canvasContext.fillStyle = 'white';
+		if(player1Score >= WIN_SCORE) {
+			canvasContext.fillText("Left Player Wins!!!", 350, 200);
+		} else if(player2Score >= WIN_SCORE) {
+			canvasContext.fillText("Right Player Wins!!!", 350, 200);
+		}
+		canvasContext.fillText("Click to continue", 350, 400);
+		return;
+	}
+
+	//Ball
+	colorCircle(ballX, ballY, 10, 'white');
+	//Net
+	drawNet();
+	//Paddle Player
+	colorRect(0,paddle1Y,PADDLE_THICKNESS,paddleHeight, 'white');
+	//Paddle AI
+	colorRect(canvas.width-PADDLE_THICKNESS,paddle2Y,PADDLE_THICKNESS,paddleHeight2, 'white');
+	//Power ups
+	drawPowerUp();
+	//Player Scores
+	canvasContext.fillStyle = 'white';
+	canvasContext.fillText(player1Score, 100, 100);
+	canvasContext.fillText(player2Score, 700, 100);
+}
+
+function colorCircle(centerX, centerY, radius, drawColor) {
+	canvasContext.fillStyle = drawColor;
+	canvasContext.beginPath();
+	canvasContext.arc(centerX, centerY, radius, 0, Math.PI*2, true);
+	canvasContext.fill();
+}
+
+function colorRect(leftX, topY, width, height, drawColor) {
+	canvasContext.fillStyle = drawColor;
+	canvasContext.fillRect(leftX, topY, width, height);
+}
+
+</script>
+
+</html>
